@@ -67,7 +67,7 @@ matData.WindSpeed = zeros(matData.NAzimStep, 1);
 
 if ( matData.NumStates > 0 )
     matData.DescStates = data(matData.NAzimStep).x_desc;
-    matData.StateDerivOrder = data(matData.NAzimStep).x_DerivOrder;
+    matData.StateDerivOrder = data(matData.NAzimStep).x_derivOrder;
     matData.xdop       = zeros(matData.NumStates,                    matData.NAzimStep);
     matData.xop        = zeros(matData.NumStates,                    matData.NAzimStep);
     matData.A          = zeros(matData.NumStates, matData.NumStates, matData.NAzimStep);   
@@ -99,7 +99,7 @@ if ( matData.NumStates > 0 )
     
     x_rotFrame(matData.StateOrderingIndx)         = data(matData.NAzimStep).x_rotFrame;
     matData.DescStates(matData.StateOrderingIndx) = data(matData.NAzimStep).x_desc;
-    matData.StateDerivOrder(matData.StateOrderingIndx) = data(matData.NAzimStep).x_DerivOrder;
+    matData.StateDerivOrder(matData.StateOrderingIndx) = data(matData.NAzimStep).x_derivOrder;
 end
 
 %% .................................
