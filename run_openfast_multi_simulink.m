@@ -11,7 +11,7 @@ clc;
 clearvars;
 
 TMax = 700;
-n_seeds = 5;
+n_seeds = 100;
 
 if ismac
     
@@ -182,7 +182,7 @@ end
 
 %% Prepare parallel SL Simulations
 cd(project_dir);
-for case_idx = 1:length(n_cases)
+for case_idx = 1:n_cases
 
     C_BL_SOAR25_V2f_c73_Clean;
 
