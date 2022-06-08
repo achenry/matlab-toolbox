@@ -182,11 +182,8 @@ end
 
 %% Prepare parallel SL Simulations
 cd(project_dir);
+C_BL_SOAR25_V2f_c73_Clean;
 for case_idx = 1:n_cases
-
-    C_BL_SOAR25_V2f_c73_Clean;
-
-    
 
     FAST_InputFileName = fullfile(FAST_runDirectory, ...
         [case_name_list{case_idx}, '.fst']);
