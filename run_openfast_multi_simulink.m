@@ -10,13 +10,15 @@ close all;
 clc;
 clearvars;
 
-start_dir = pwd;
+TMax = 700;
+n_seeds = 5;
 
 if ismac
     
     home_dir = '/Users/aoifework/Documents';
     project_dir = fullfile(home_dir, 'Research/ipc_tuning/');
 
+    addpath(fullfile(home_dir, 'toolboxes/matlab-toolbox'));
     addpath(fullfile(home_dir, 'toolboxes/matlab-toolbox/A_Functions'));
     addpath(fullfile(home_dir, 'toolboxes/matlab-toolbox/Utilities'));
     addpath(fullfile(home_dir, 'toolboxes/turbsim-toolbox/A_Functions/'));
@@ -27,12 +29,13 @@ if ismac
     % fast_install_dir = fullfile(home_dir, 'dev/WEIS/OpenFAST/install');
     fast_install_dir = fullfile(home_dir, 'usflowt_src/openfast/install');
 
-    fast_models_dir = fullfile(home_dir, 'Research/ipc_tuning');
-    fastRunner.FAST_runDirectory = fullfile(home_dir, 'Research/ipc_tuning/simulations');
+    fast_models_dir = project_dir;
+    FAST_runDirectory = fullfile(home_dir, 'Research/ipc_tuning/simulations');
 
     windfiles_dir = fullfile(project_dir, 'WindFiles', 'rated_turbulent');
 
-    FAST_SimulinkModel = fullfile(project_dir, 'AD_SOAR_c7_V2f_c73_Clean');
+    FAST_SimulinkModel = 'AD_SOAR_c7_V2f_c73_Clean';
+    addpath(fullfile(project_dir)); % sl model
     
     % FAST_SFunc location
     addpath(fullfile(fast_install_dir, 'lib'));
@@ -41,20 +44,22 @@ elseif isunix
     home_projects_dir = '/projects/aohe7145';
     home_storage_dir = '/scratch/summit/aohe7145';
     project_dir = fullfile(home_projects_dir, 'projects/ipc_tuning');
-
-    addpath(fullfile(home_projects_dir, 'toolboxes/dev/matlab-toolbox/A_Functions'));
+    
+    addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox'));
+    addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox/A_Functions'));
     addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox/Utilities'));
     addpath(fullfile(home_projects_dir, 'toolboxes/turbsim-toolbox/A_Functions/'));
     addpath(project_dir);
 
     libext = '.so';
     
-    fast_install_dir = fullfile(home_projects_dir, 'toolboxes/dev/WEIS/OpenFAST/install');
-    fast_models_dir = fullfile(home_projects_dir, 'models');
-    fastRunner.FAST_runDirectory = fullfile(home_storage_dir, 'OpenfastSimulations/SOAR_rated_turbulent');
-    windfiles_dir = fullfile(home_storage_dir, 'WindFiles/rated_turbulent');
+    fast_install_dir = fullfile(home_projects_dir, 'toolboxes/usflowt/openfast/install');
+    fast_models_dir = project_dir;
+    FAST_runDirectory = fullfile(home_storage_dir, 'OpenfastSimulations/SOAR_rated_turbulent');
+    windfiles_dir = fullfile(project_dir, 'WindFiles/rated_turbulent');
 
-    FAST_SimulinkModel = fullfile(home_dir, fast_models_dir, 'AD_SOAR_c7_V2f_c73_Clean');
+    FAST_SimulinkModel = 'AD_SOAR_c7_V2f_c73_Clean';
+    addpath(fullfile(project_dir)); % sl model
 
     % FAST_SFunc location
     addpath(fullfile(fast_install_dir, 'lib'));
@@ -66,8 +71,8 @@ fastRunner.FAST_lib = fullfile(fast_install_dir, ['lib/libopenfastlib', libext])
 fastRunner.FAST_directory = fullfile(fast_models_dir, 'SOAR-25_V2f_IF');
 fastRunner.FAST_InputFile = 'weis_job_00';
 
-if ~exist(fastRunner.FAST_runDirectory, 'dir')
-    mkdir(fastRunner.FAST_runDirectory);
+if ~exist(FAST_runDirectory, 'dir')
+    mkdir(FAST_runDirectory);
 end
 
 %% Generate simulation cases
@@ -89,14 +94,13 @@ Parameters.Turbine.ShaftTilt = 8.4;%7.0; % deg
 Parameters.Tower.Height  = 193.287;
 
 if ~exist('OutList')
-    OutList = manualOutList([fullfile(fastRunner.FAST_directory, fastRunner.FAST_InputFile), '.SFunc.sum']);
+    OutList = manualOutList([fullfile(fastRunner.FAST_directory, ...
+        fastRunner.FAST_InputFile), '.SFunc.sum']);
 end
 
-TMax = 150;
-n_seeds = 100;
 ux_mean = 11.4;
 
-CaseGen.dir_matrix = fastRunner.FAST_runDirectory;
+CaseGen.dir_matrix = FAST_runDirectory;
 CaseGen.namebase = 'AD_SOAR_c7_V2f_c73_Clean';
 [~, CaseGen.model_name, ~] = fileparts(fastRunner.FAST_InputFile);
 
@@ -110,7 +114,7 @@ for bts_idx = 1:n_seeds
         ['B_', replace(num2str(ux_mean), '.', '-'), '_', num2str(bts_idx), '.bts']) '"'];
 end
 
-[fastRunner.case_list, fastRunner.case_name_list, n_cases] = generateCases(case_basis, CaseGen.namebase, true);
+[case_list, case_name_list, n_cases] = generateCases(case_basis, CaseGen.namebase, true);
 
 %% Generate OpenFAST input files for each case
 
@@ -121,44 +125,45 @@ templates_dir = fullfile(fastRunner.FAST_directory, 'templates');
 template_fst_dir = fullfile(templates_dir, 'Fst');
 template_infw_dir = fullfile(templates_dir, 'InflowWind');
 
-copyfile(fullfile(fastRunner.FAST_directory, 'Airfoils'), fullfile(fastRunner.FAST_runDirectory, 'Airfoils'));
-copyfile(fullfile(fastRunner.FAST_directory, '*.txt'), fastRunner.FAST_runDirectory);
-copyfile(fullfile(fastRunner.FAST_directory, '*.dat'), fastRunner.FAST_runDirectory);
-copyfile(fullfile(fastRunner.FAST_directory, '*.fst'), fastRunner.FAST_runDirectory);
+copyfile(fullfile(fastRunner.FAST_directory, 'Airfoils'), fullfile(FAST_runDirectory, 'Airfoils'));
+copyfile(fullfile(fastRunner.FAST_directory, '*.txt'), FAST_runDirectory);
+copyfile(fullfile(fastRunner.FAST_directory, '*.dat'), FAST_runDirectory);
+copyfile(fullfile(fastRunner.FAST_directory, '*.fst'), FAST_runDirectory);
 
-for case_idx=1:n_cases
+
+parfor case_idx=1:n_cases
     
-    fastRunner.case_list(case_idx).FAST_directory = fastRunner.FAST_runDirectory;
-    % fastRunner.case_list(case_idx).FAST_runDirectory = fullfile(fastRunner.FAST_runDirectory, ['case_' num2str(case_idx)]);
-    fastRunner.case_list(case_idx).FAST_runDirectory = fastRunner.case_list(case_idx).FAST_directory;
-    if ~exist(fastRunner.case_list(case_idx).FAST_runDirectory, 'dir')
-        mkdir(fastRunner.case_list(case_idx).FAST_runDirectory);
-    end
-    fastRunner.case_list(case_idx).FAST_inputFilename = ...
-        fullfile(fastRunner.case_list(case_idx).FAST_runDirectory, [fastRunner.case_name_list{case_idx}, '.fst']);
+    % case_list(case_idx).FAST_directory = FAST_runDirectory;
+    % case_list(case_idx).FAST_runDirectory = fullfile(FAST_runDirectory, ['case_' num2str(case_idx)]);
+    % case_list(case_idx).FAST_runDirectory = FAST_runDirectory;
+%     if ~exist(FAST_runDirectory, 'dir')
+%         mkdir(FAST_runDirectory);
+%     end
+    %case_list(case_idx).FAST_inputFilename = ...
+    %    fullfile(case_list(case_idx).FAST_runDirectory, [case_name_list{case_idx}, '.fst']);
 
-    new_fst_name = fullfile(fastRunner.case_list(case_idx).FAST_runDirectory, ...
-        fastRunner.case_name_list{case_idx});
-    new_infw_name = fullfile(fastRunner.case_list(case_idx).FAST_runDirectory, ...
-        [fastRunner.case_name_list{case_idx}, '_InflowWind']);
+    new_fst_name = fullfile(FAST_runDirectory, ...
+        case_name_list{case_idx});
+    new_infw_name = fullfile(FAST_runDirectory, ...
+        [case_name_list{case_idx}, '_InflowWind']);
 
-    fst_lines = fields(fastRunner.case_list(case_idx).Fst);
+    fst_lines = fields(case_list(case_idx).Fst);
     fst_edits = {};
 
     for l = 1:length(fst_lines)
-        fst_edits{l} = fastRunner.case_list(case_idx).Fst.(fst_lines{l});
+        fst_edits{l} = case_list(case_idx).Fst.(fst_lines{l});
     end
 
-    if isfield(fastRunner.case_list, 'InflowWind')
+    if isfield(case_list, 'InflowWind')
         fst_lines{l + 1} = 'InflowFile';
         fst_edits{l + 1} = ['"' new_infw_name '.dat' '"'];
     end
     
-    infw_lines = fields(fastRunner.case_list(case_idx).InflowWind);
+    infw_lines = fields(case_list(case_idx).InflowWind);
     infw_edits = {};
 
     for l = 1:length(infw_lines)
-        infw_edits{l} = fastRunner.case_list(case_idx).InflowWind.(infw_lines{l});
+        infw_edits{l} = case_list(case_idx).InflowWind.(infw_lines{l});
     end
     
     Af_EditFast(fst_lines, fst_edits, new_fst_name, def_fst_file, template_fst_dir, input_mode);
@@ -176,14 +181,15 @@ end
 % Af_EditADriver;
 
 %% Prepare parallel SL Simulations
-
+cd(project_dir);
 for case_idx = 1:length(n_cases)
 
     C_BL_SOAR25_V2f_c73_Clean;
 
-    cd(fastRunner.case_list(case_idx).FAST_runDirectory);
+    
 
-    FAST_InputFileName = fastRunner.case_list(case_idx).FAST_inputFilename;
+    FAST_InputFileName = fullfile(FAST_runDirectory, ...
+        [case_name_list{case_idx}, '.fst']);
 
     % Populate thread parameters
     sim_inputs(case_idx) = Simulink.SimulationInput(FAST_SimulinkModel);
@@ -195,7 +201,7 @@ for case_idx = 1:length(n_cases)
 end
 
 % Return to starting directory
-cd(start_dir);
+%cd(start_dir);
 
 
 %% Run simulations in multiple parallel threads
@@ -203,12 +209,32 @@ cd(start_dir);
 RUN_SIM = true;
 
 if RUN_SIM
-%     Future = parsim(sim_inputs, ...
-%          'RunInBackground', 'off', ...
-%         'ShowProgress', 'on', ...
-%         'TransferBaseWorkspaceVariables', true); % Run simulation
-     Future = sim(FAST_SimulinkModel);
+    Future = parsim(sim_inputs, ...
+                   'TransferBaseWorkspaceVariables', true, ... % Run simulation
+                   'RunInBackground', 'off', ...
+                   'ShowProgress',  'on');
+        
+     %Future = sim(FAST_SimulinkModel);
 end
-
-fprintf('\nOpenFAST Simulations Completed\n\n\n');
-
+% wait(Future);
+% test_idx = 1;
+% sim_data = Future(test_idx);
+% time = sim_data.OutData.time;
+% BldPitch1 = sim_data.Cyc_BldPitch1;
+% GenTorq = sim_data.Out_Tg;
+% % Torque = sim_data.sigsOut{14}.Values.Data;
+% RotSpeed = sim_data.sigsOut{9}.Values.Data;
+% Uest = sim_data.v_hat_out.Data;
+% 
+% figure;
+% tiledlayout(4, 1);
+% ax1 = nexttile;
+% plot(time, BldPitch1); title('BldPitch1');
+% ax2 = nexttile
+% plot(time, GenTorq); title('GenTorq');
+% ax3 = nexttile;
+% plot(time, RotSpeed); title('RotSpeed');
+% ax4 = nexttile;
+% plot(time, Uest); title('Uest');
+% linkaxes([ax1, ax2, ax3, ax4], 'x');
+% xlabel('time');
