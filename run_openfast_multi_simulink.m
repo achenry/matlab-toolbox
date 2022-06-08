@@ -1,261 +1,213 @@
 %% Run FAST from Simulink in parallel
 
 %% TODO
-% use generateCases function
-% adapt for mac and unix
-% adapt for most recent fast version
+% use generateCases function X
+% create edit FASTIF function using struct and templates X
+% adapt filepaths for mac and unix X
 
+%% Initialize workspace and add paths
 close all;
 clc;
 clearvars;
 
+start_dir = pwd;
+
 if ismac
-    addpath('/Users/aoifework/Documents/dev/WEIS/OpenFAST/install/bin');
-    addpath('/Users/aoifework/Documents/toolboxes/matlab-toolbox/A_Functions');
-elseif isunix
-    addpath('/projects/aohe7145/toolboxes/dev/WEIS/OpenFAST/install/bin');
-    addpath('/projects/aohe7145/toolboxes/matlab-toolbox/A_Functions');
-end
-
-save_dir = '../controller_verf/model3.0_Dist_v1_DLC11_SL';
-[~, ~, ~] = mkdir(save_dir);
-
-fast_IF_dir = 'FAST8_IF';
-Name_Model = 'USFL_SL_MDL_c6_r2018a';
-% Name_Model = 'USFL_SL_MDL_c5_elenya_fullBaseline_attempt06_newFF';
-c4_dir = '../controller_dev/';
-addpath(c4_dir);
-
-% Metocean environment conditions
-load_metocean;
-outlist_cache = load('outlist_cache');
-
-
-main_wd = cd(fast_IF_dir);
-
-%% Start embedded python environment
-pe = pyenv;
-
-%% Set up parameters for simulations to run
-
-% Dynamic case
-enable_inflow = 1;
-enable_aero = 2;
-enable_servo = 1;
-
-wind_type = 3;
-wave_mod = 2;
-rot_speed_init = 9.6;
-
-% Wind cases
-% urefs = 4:24;
-urefs = 4:2:24;
-% urefs = [10 11:2:23];
-% urefs = 12:24;
-% urefs = 24;
-% urefs = 14;
-% urefs = [4 10 12 14 16 24];
-urefs = fliplr(urefs);
-
-% Add controllers to evaluate
-% controller_cb    = true;
-controller_cb    = false;
-% cb_forward_tilt  = 5; % deg
-cb_forward_tilt  = 0; % deg
-controller_names = {};
-controller_files = {};
-
-controller_names = cat(2, controller_names, 'c6');
-controller_files = cat(2, controller_files, 'simulink_rosco_c4_redone');
-
-% controller_names = cat(2, controller_names, 'c6-fl-dual-comp');
-% controller_files = cat(2, controller_files, 'simulink_rosco_c4_fl_gentq_shared_sched_sat');
-
-controllers = 1:length(controller_names);
-if controller_cb
-    for ii = 1:length(controller_names)
-        controller_names{ii} = [controller_names{ii} '-CB1'];
-%         controller_names{ii} = [controller_names{ii} '-CB2'];
-    end
-end
-
-% Random seeds
-% num_seeds = 6;
-% num_seeds = 2;
-% seeds = 1:num_seeds;
-% seeds = 1:6;
-seeds = 1;
-
-TMax = 800;
-
-% Some empirical data
-model_data = load('../v5_mean_data');
-
-
-% Parameter file names
-FAST_template_filename = 'Model.fst.t';
-FAST_filename_format = 'U_%d_C_%s_S_%d_T_%d';
-
-inflow_template_filename = 'InflowWind.dat.t';
-inflow_filename_format = 'InflowWind_U_%d_S_%d.dat';
-
-hydro_template_filename = 'HydroDyn.dat.t';
-hydro_filename_format = 'HydroDyn_U_%d.dat';
-
-servo_template_filename = 'ServoDyn.dat.t';
-servo_filename_format = 'ServoDyn_C_%s.dat';
-
-elasto_template_filename = 'ElastoDyn.dat.t';
-elasto_filename_format = 'ElastoDyn_U_%d.dat';
-
-moor_template_filename = 'MoorDyn.dat.t';
-moor_filename_format = 'MoorDyn_U_%d.dat';
-
-% Load template files
-% FAST_template_data = fileread(['templates/' FAST_template_filename]);
-FAST_template_file = py.open(['templates/' FAST_template_filename]);
-FAST_template_data = FAST_template_file.read();
-FAST_template_file.close();
-FAST_template_object = py.string.Template(FAST_template_data);
-
-inflow_template_data = fileread(['templates/' inflow_template_filename]);
-inflow_template_object = py.string.Template(inflow_template_data);
-
-hydro_template_data = fileread(['templates/' hydro_template_filename]);
-hydro_template_object = py.string.Template(hydro_template_data);
-
-% servo_template_data = fileread(['templates/' servo_template_filename]);
-% servo_template_object = py.string.Template(servo_template_data);
-
-elasto_template_data = fileread(['templates/' elasto_template_filename]);
-elasto_template_object = py.string.Template(elasto_template_data);
-
-moor_template_data = fileread(['templates/' moor_template_filename]);
-moor_template_object = py.string.Template(moor_template_data);
-
-
-% Load parameters for each running instance (slow because structure is not
-% preallocated, but only needs to be done once at init)
-num_runs = length(seeds) * length(controllers) * length(urefs);
-run_index = 1;
-for u_index = 1:length(urefs)
-    wind_select = urefs(u_index);
-
-    % Populate case-specific template files
-
-    % ElastoDyn (rotor speed)
-%     rot_speed_select = rot_speed_init; % Could replace with lookup table for region 2
-    rot_speed_select = interp1(model_data.wind, model_data.rotspd_data, wind_select);
-    blpitch_select = interp1(model_data.wind, model_data.blpitch_data, wind_select);
-    elasto_filename = sprintf(['ED/' elasto_filename_format], urefs(u_index));
-    elasto_output_file = fopen(elasto_filename, 'w');
-    fwrite(elasto_output_file, elasto_template_object.substitute(py.dict(pyargs(...
-        'INITROTSPD', rot_speed_select, ...
-        'INITBLPITCH', blpitch_select))).char());
-    fclose(elasto_output_file);
     
-    % MoorDyn (can ballast)
-    if controller_cb
-        fine_ballast = 1e-5;
-        base_ballast = 2;
-        cb_level = 0.63186 * (interp1(model_data.wind, model_data.pitch_data, wind_select) + cb_forward_tilt);
-        moor_filename = sprintf(['MD/' moor_filename_format], urefs(u_index));
-        moor_output_file = fopen(moor_filename, 'w');
-        fwrite(moor_output_file, moor_template_object.substitute(py.dict(pyargs(...
-            'BAL1LEN', base_ballast + cb_level, 'BAL2LEN', base_ballast+fine_ballast, 'BAL3LEN', base_ballast+fine_ballast))).char());
-        fclose(moor_output_file);
-    else
-        moor_filename = 'MD/MoorDyn.dat';
+    home_dir = '/Users/aoifework/Documents';
+    project_dir = fullfile(home_dir, 'Research/ipc_tuning/');
+
+    addpath(fullfile(home_dir, 'toolboxes/matlab-toolbox/A_Functions'));
+    addpath(fullfile(home_dir, 'toolboxes/matlab-toolbox/Utilities'));
+    addpath(fullfile(home_dir, 'toolboxes/turbsim-toolbox/A_Functions/'));
+    addpath(project_dir);
+
+    libext = '.dylib';
+    
+    % fast_install_dir = fullfile(home_dir, 'dev/WEIS/OpenFAST/install');
+    fast_install_dir = fullfile(home_dir, 'usflowt_src/openfast/install');
+
+    fast_models_dir = fullfile(home_dir, 'Research/ipc_tuning');
+    fastRunner.FAST_runDirectory = fullfile(home_dir, 'Research/ipc_tuning/simulations');
+
+    windfiles_dir = fullfile(project_dir, 'WindFiles', 'rated_turbulent');
+
+    FAST_SimulinkModel = fullfile(project_dir, 'AD_SOAR_c7_V2f_c73_Clean');
+    
+    % FAST_SFunc location
+    addpath(fullfile(fast_install_dir, 'lib'));
+
+elseif isunix
+    home_projects_dir = '/projects/aohe7145';
+    home_storage_dir = '/scratch/summit/aohe7145';
+    project_dir = fullfile(home_projects_dir, 'projects/ipc_tuning');
+
+    addpath(fullfile(home_projects_dir, 'toolboxes/dev/matlab-toolbox/A_Functions'));
+    addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox/Utilities'));
+    addpath(fullfile(home_projects_dir, 'toolboxes/turbsim-toolbox/A_Functions/'));
+    addpath(project_dir);
+
+    libext = '.so';
+    
+    fast_install_dir = fullfile(home_projects_dir, 'toolboxes/dev/WEIS/OpenFAST/install');
+    fast_models_dir = fullfile(home_projects_dir, 'models');
+    fastRunner.FAST_runDirectory = fullfile(home_storage_dir, 'OpenfastSimulations/SOAR_rated_turbulent');
+    windfiles_dir = fullfile(home_storage_dir, 'WindFiles/rated_turbulent');
+
+    FAST_SimulinkModel = fullfile(home_dir, fast_models_dir, 'AD_SOAR_c7_V2f_c73_Clean');
+
+    % FAST_SFunc location
+    addpath(fullfile(fast_install_dir, 'lib'));
+
+end
+
+fastRunner.FAST_exe = fullfile(fast_install_dir, 'bin/openfast');
+fastRunner.FAST_lib = fullfile(fast_install_dir, ['lib/libopenfastlib', libext]);
+fastRunner.FAST_directory = fullfile(fast_models_dir, 'SOAR-25_V2f_IF');
+fastRunner.FAST_InputFile = 'weis_job_00';
+
+if ~exist(fastRunner.FAST_runDirectory, 'dir')
+    mkdir(fastRunner.FAST_runDirectory);
+end
+
+%% Generate simulation cases
+
+Simulation.OpenFAST         = 1;
+Simulation.OpenFAST_Date    = '042821';
+Simulation.AeroDynVer       = '15';
+Simulation.DT = 0.0125;
+DT = Simulation.DT;
+cut_transients              = 100;
+
+Name_Model                  = 'AD_SOAR_c7_V2f_c73_Clean';
+Name_Control                = 'C_BL_SOAR25_V2f_c73_Clean';
+Parameters.Turbine.String   = 'SOAR-25-V2f';
+Parameters.Turbine.fine_pitch = 0.303;
+CpCtCqFile = fullfile(fastRunner.FAST_directory, 'weis_job_00_Cp_Ct_Cq.txt');
+Parameters.Turbine.ConeAngle = 3.6;%2.5;
+Parameters.Turbine.ShaftTilt = 8.4;%7.0; % deg
+Parameters.Tower.Height  = 193.287;
+
+if ~exist('OutList')
+    OutList = manualOutList([fullfile(fastRunner.FAST_directory, fastRunner.FAST_InputFile), '.SFunc.sum']);
+end
+
+TMax = 150;
+n_seeds = 100;
+ux_mean = 11.4;
+
+CaseGen.dir_matrix = fastRunner.FAST_runDirectory;
+CaseGen.namebase = 'AD_SOAR_c7_V2f_c73_Clean';
+[~, CaseGen.model_name, ~] = fileparts(fastRunner.FAST_InputFile);
+
+case_basis.InflowWind.FileName_BTS = {};
+case_basis.InflowWind.WindType = {'3'};
+case_basis.InflowWind.HWindSpeed = {num2str(ux_mean)};
+case_basis.Fst.TMax = {num2str(TMax)};
+
+for bts_idx = 1:n_seeds
+    case_basis.InflowWind.FileName_BTS{bts_idx} = ['"' fullfile(windfiles_dir, ...
+        ['B_', replace(num2str(ux_mean), '.', '-'), '_', num2str(bts_idx), '.bts']) '"'];
+end
+
+[fastRunner.case_list, fastRunner.case_name_list, n_cases] = generateCases(case_basis, CaseGen.namebase, true);
+
+%% Generate OpenFAST input files for each case
+
+input_mode = 2;
+def_fst_file = fullfile(fastRunner.FAST_directory, fastRunner.FAST_InputFile);
+def_infw_file = fullfile(fastRunner.FAST_directory, [fastRunner.FAST_InputFile, '_InflowFile']);
+templates_dir = fullfile(fastRunner.FAST_directory, 'templates');
+template_fst_dir = fullfile(templates_dir, 'Fst');
+template_infw_dir = fullfile(templates_dir, 'InflowWind');
+
+copyfile(fullfile(fastRunner.FAST_directory, 'Airfoils'), fullfile(fastRunner.FAST_runDirectory, 'Airfoils'));
+copyfile(fullfile(fastRunner.FAST_directory, '*.txt'), fastRunner.FAST_runDirectory);
+copyfile(fullfile(fastRunner.FAST_directory, '*.dat'), fastRunner.FAST_runDirectory);
+copyfile(fullfile(fastRunner.FAST_directory, '*.fst'), fastRunner.FAST_runDirectory);
+
+for case_idx=1:n_cases
+    
+    fastRunner.case_list(case_idx).FAST_directory = fastRunner.FAST_runDirectory;
+    % fastRunner.case_list(case_idx).FAST_runDirectory = fullfile(fastRunner.FAST_runDirectory, ['case_' num2str(case_idx)]);
+    fastRunner.case_list(case_idx).FAST_runDirectory = fastRunner.case_list(case_idx).FAST_directory;
+    if ~exist(fastRunner.case_list(case_idx).FAST_runDirectory, 'dir')
+        mkdir(fastRunner.case_list(case_idx).FAST_runDirectory);
+    end
+    fastRunner.case_list(case_idx).FAST_inputFilename = ...
+        fullfile(fastRunner.case_list(case_idx).FAST_runDirectory, [fastRunner.case_name_list{case_idx}, '.fst']);
+
+    new_fst_name = fullfile(fastRunner.case_list(case_idx).FAST_runDirectory, ...
+        fastRunner.case_name_list{case_idx});
+    new_infw_name = fullfile(fastRunner.case_list(case_idx).FAST_runDirectory, ...
+        [fastRunner.case_name_list{case_idx}, '_InflowWind']);
+
+    fst_lines = fields(fastRunner.case_list(case_idx).Fst);
+    fst_edits = {};
+
+    for l = 1:length(fst_lines)
+        fst_edits{l} = fastRunner.case_list(case_idx).Fst.(fst_lines{l});
     end
 
-    for s_index = 1:length(seeds)
-        seed_select = seeds(s_index);
-
-        % HydroDyn (metocean conditions)
-        wavehs_select = interp1(met_wind_table, met_wavehs_table, wind_select);
-        wavetp_select = interp1(met_wind_table, met_wavetp_table, wind_select);
-        wavepkshp_select = interp1(met_wind_table, met_wavepkshp_table, wind_select);
-        wave_s1 = round(wind_select * seed_select * wavehs_select * wavetp_select * wavepkshp_select) + 123;
-        wave_s2 = wave_s1 * wave_s1 + 456;
-        hydro_filename = sprintf(['HD/' hydro_filename_format], wind_select);
-        hydro_output_file = fopen(hydro_filename, 'w');
-        fwrite(hydro_output_file, hydro_template_object.substitute(py.dict(pyargs(...
-            'WAVEMOD', num2str(wave_mod), 'WAVETMAX', num2str(TMax + 100),...
-            'WAVEHS', wavehs_select, 'WAVETP', wavetp_select, 'WAVEPKSHP', wavepkshp_select,...
-            'WAVES1', num2str(wave_s1), 'WAVES2', num2str(wave_s2)))).char());
-        fclose(hydro_output_file);
-
-        % InflowWind (wind speed, random seed)
-        inflow_filename = sprintf(['IfW/' inflow_filename_format], wind_select, seed_select);
-        inflow_output_file = fopen(inflow_filename, 'w');
-        fwrite(inflow_output_file, inflow_template_object.substitute(py.dict(pyargs(...
-                'WINDTYPE', num2str(wind_type), 'UREF', num2str(wind_select), 'SEED', num2str(seed_select), 'ETM', ''))).char());
-        fclose(inflow_output_file);
-
-        for c_index = 1:length(controllers)
-            c_name = controller_names{c_index};
-            c_file = controller_files{c_index};
-
-            % FAST input file (need separate model file for each controller so output files don't collide)
-            FAST_filename_base = sprintf(FAST_filename_format, ...
-                    wind_select, c_name, seed_select, TMax);
-            FAST_filename = ['FASTInput/' FAST_filename_base '.fst'];
-            FAST_output_file = fopen(FAST_filename, 'w');
-            fwrite(FAST_output_file, FAST_template_object.substitute(py.dict(pyargs('TMAX', num2str(TMax), ...
-                    'COMP_INFLOW', num2str(enable_inflow), 'COMP_AERO', num2str(enable_aero), 'COMP_SERVO', num2str(enable_servo), ...
-                    'ELASTODYN_DAT', ['../' elasto_filename], ...
-                    'INFLOWWIND_DAT', ['../' inflow_filename], ...
-                    'HYDRODYN_DAT', ['../' hydro_filename], ...
-                    'SERVODYN_DAT', '../SrvD/ServoDyn_SL.dat', ...
-                    'SUBDYN_DAT', '../SD/SubDyn.dat', ...
-                    'MOORDYN_DAT', ['../' moor_filename]...
-                    ))).char());
-            fclose(FAST_output_file);
-
-
-            % Populate thread parameters
-            sim_params(run_index).thread_id = run_index;
-            sim_params(run_index).TMax = TMax;
-            sim_params(run_index).model = Name_Model;
-            sim_params(run_index).outlist_cache = outlist_cache;
-            
-            sim_params(run_index).wind = wind_select;
-            sim_params(run_index).c_name = c_name;
-            sim_params(run_index).c_file = c_file;
-            sim_params(run_index).seed = seed_select;
-            sim_params(run_index).init_rot_speed = rot_speed_select;
-            sim_params(run_index).init_blpitch = blpitch_select;
-
-            % Input filenames
-            sim_params(run_index).save_dir = save_dir;
-            sim_params(run_index).FAST_filename = [fast_IF_dir '/' FAST_filename];
-            sim_params(run_index).inflow_filename = inflow_filename;
-            sim_params(run_index).hydro_filename = hydro_filename;
-
-            run_index = run_index + 1;
-        end
+    if isfield(fastRunner.case_list, 'InflowWind')
+        fst_lines{l + 1} = 'InflowFile';
+        fst_edits{l + 1} = ['"' new_infw_name '.dat' '"'];
     end
+    
+    infw_lines = fields(fastRunner.case_list(case_idx).InflowWind);
+    infw_edits = {};
+
+    for l = 1:length(infw_lines)
+        infw_edits{l} = fastRunner.case_list(case_idx).InflowWind.(infw_lines{l});
+    end
+    
+    Af_EditFast(fst_lines, fst_edits, new_fst_name, def_fst_file, template_fst_dir, input_mode);
+    Af_EditInflow(infw_lines, infw_edits, new_infw_name, def_infw_file, template_infw_dir, input_mode);
+end
+
+% Af_EditSub;
+% Af_EditServo;
+% Af_EditLin;
+% Af_EditHydro;
+% Af_EditElast;
+% Af_EditDriver;
+% Af_EditBeam;
+% Af_EditAero15;
+% Af_EditADriver;
+
+%% Prepare parallel SL Simulations
+
+for case_idx = 1:length(n_cases)
+
+    C_BL_SOAR25_V2f_c73_Clean;
+
+    cd(fastRunner.case_list(case_idx).FAST_runDirectory);
+
+    FAST_InputFileName = fastRunner.case_list(case_idx).FAST_inputFilename;
+
+    % Populate thread parameters
+    sim_inputs(case_idx) = Simulink.SimulationInput(FAST_SimulinkModel);
+%     sim_inputs(case_idx).thread_id = case_idx;
+    sim_inputs(case_idx) = sim_inputs(case_idx).setVariable('TMax', TMax);
+    sim_inputs(case_idx) = sim_inputs(case_idx).setVariable('FAST_InputFileName', FAST_InputFileName);
+    sim_inputs(case_idx) = sim_inputs(case_idx).setVariable('DT', Simulation.DT);
+    sim_inputs(case_idx) = sim_inputs(case_idx).setModelParameter('StartTime','0','StopTime','TMax');
 end
 
 % Return to starting directory
-cd(main_wd);
+cd(start_dir);
 
 
 %% Run simulations in multiple parallel threads
 
-num_threads = 10; % Just shy of the 12 present in machine
+RUN_SIM = true;
 
-% Automatically identify runs that haven't finished (e.g if the sim was interrupted)
-run_select = 1%:num_runs;
-% find_done;
-num_thread_runs = length(run_select);
-num_batches = ceil(num_thread_runs / num_threads);
-fprintf('Executing %d runs of %d (expect approx %.1f hours to completion)\n', ...
-    num_thread_runs, num_runs, 1.5*num_batches);
-%parfor (run_index = 1:num_thread_runs, num_threads)
-for run_index = 1:num_thread_runs
-    thread_index = run_select(run_index);
-    run_openfast_simulink(sim_params(thread_index));
+if RUN_SIM
+%     Future = parsim(sim_inputs, ...
+%          'RunInBackground', 'off', ...
+%         'ShowProgress', 'on', ...
+%         'TransferBaseWorkspaceVariables', true); % Run simulation
+     Future = sim(FAST_SimulinkModel);
 end
 
 fprintf('\nOpenFAST Simulations Completed\n\n\n');

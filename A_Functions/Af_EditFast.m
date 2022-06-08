@@ -23,8 +23,6 @@ function Af_EditFast(lines, edits, newname, defname, templateDir, input_mode)
 
 % Outputs:  Nothing, It makes a new .fst file in the current folder
 
-
-
 if (input_mode~=1 && input_mode~=2 )
     error('Error, input_mode must be either 1 or 2')
 end
