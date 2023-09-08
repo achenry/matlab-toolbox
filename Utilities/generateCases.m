@@ -9,7 +9,15 @@ function [case_list, case_name_list, n_cases] = generateCases(case_basis, nameba
     if fast_fmt
         param_fields = struct;
         for f = 1:length(input_fields)
-            param_fields.(input_fields{f}) = fields(case_basis.(input_fields{f}));
+            sub_fields = fields(case_basis.(input_fields{f}));
+            for ff = 1:length(sub_fields)
+                if isstruct(case_basis.(input_fields{f}).(sub_fields{ff}))
+                    subsub_fields = fields(case_basis.(input_fields{f}).(sub_fields{ff}));
+                    param_fields.(input_fields{f}).(sub_fields{ff}) = subsub_fields;
+                else 
+                    param_fields.(input_fields{f}){ff} = sub_fields{ff};
+                end
+            end
         end
     end
 
@@ -22,23 +30,58 @@ function [case_list, case_name_list, n_cases] = generateCases(case_basis, nameba
     for f = 1:length(input_fields)
         n_field_vals = [n_field_vals; []];
         if fast_fmt
-            param_basis = case_basis.(input_fields{f});
-            n_param_fields = length(param_fields.(input_fields{f}));
-            n_total_fields = n_total_fields + n_param_fields;
-            for p = 1:n_param_fields
-                n = length(param_basis.(param_fields.(input_fields{f}){p}));
-                n_cases = n_cases * n;
-                n_vals = n_vals + n;
-                n_field_vals(f, p) = n;
-                
-                numBits = n;
-                powersOf2 = 2.^(1-numBits:0);
-                bits = [];
-                for bit = 2.^(0:n-1)
-                    bits = [bits; rem(floor(bit * powersOf2), 2)];
+            sub_fields = fields(case_basis.(input_fields{f}));
+
+%             for p = 1:n_param_fields
+            for ff = 1:length(sub_fields)
+                if isstruct(case_basis.(input_fields{f}).(sub_fields{ff}))
+                    param_basis = case_basis.(input_fields{f}).(sub_fields{ff});
+                    n_param_fields = length(param_fields.(input_fields{f}).(sub_fields{ff}));
+                    n_total_fields = n_total_fields + n_param_fields;
+
+                    n = length(param_basis.(param_fields.(input_fields{f}).(sub_fields{ff})));
+                    n_cases = n_cases * n;
+                    n_vals = n_vals + n;
+                    n_field_vals(f, ff) = n;
+                    
+                    numBits = n;
+                    powersOf2 = 2.^(1-numBits:0);
+                    bits = [];
+                    for bit = 2.^(0:n-1)
+                        bits = [bits; rem(floor(bit * powersOf2), 2)];
+                    end
+                    all_combinations = [repmat(all_combinations, length(bits), 1), ...
+                        repmat(bits, max(size(all_combinations, 1), 1), 1)];
+                else
+                    param_basis = case_basis.(input_fields{f}).(sub_fields{ff});
+                    n_param_fields = 1;%length(param_fields.(input_fields{f}));
+                    n_total_fields = n_total_fields + n_param_fields;
+
+%                     n = length(param_basis.(param_fields.(input_fields{f}){ff}));
+                    n = length(param_basis);
+                    n_cases = n_cases * n;
+                    n_vals = n_vals + n;
+                    n_field_vals(f, ff) = n;
+                    
+                    numBits = n;
+                    powersOf2 = 2.^(1-numBits:0);
+                    bits = [];
+                    % new_combinations = zeros(max(size(all_combinations, 1), 1) * numBits, numBits);
+                    clear new_combinations;
+                    % new_combinations = [];
+                    for bit = 2.^(0:n-1)
+                        new_bits = rem(floor(bit * powersOf2), 2);
+                        bits = [bits; new_bits];
+                        bit_idx = size(bits, 1);
+                        new_combination_start_idx = max(size(all_combinations, 1), 1) * (bit_idx - 1) + 1; % size(new_combinations, 1)
+                        new_combination_end_idx = max(size(all_combinations, 1), 1) * bit_idx;
+                        % repeat this new bit for each row in all_combinations
+                        new_combinations(new_combination_start_idx:new_combination_end_idx, 1:size(new_bits, 2))...
+                            = repmat(new_bits, max(size(all_combinations, 1), 1), 1);
+                    end
+                    all_combinations = [repmat(all_combinations, size(bits, 1), 1), ...
+                                new_combinations];
                 end
-                all_combinations = [repmat(all_combinations, length(bits), 1), ...
-                    repmat(bits, max(size(all_combinations, 1), 1), 1)];
             end
         else
             n = length(case_basis.(input_fields{f}));
@@ -49,11 +92,23 @@ function [case_list, case_name_list, n_cases] = generateCases(case_basis, nameba
             numBits = n;
             powersOf2 = 2.^(1-numBits:0);
             bits = [];
+            % new_combinations = zeros(max(size(all_combinations, 1), 1) * numBits, numBits);
+            clear new_combinations;
+            % new_combinations = [];
             for bit = 2.^(0:n-1)
-                bits = [bits; rem(floor(bit * powersOf2), 2)];
+                new_bits = rem(floor(bit * powersOf2), 2);
+                bits = [bits; new_bits];
+                bit_idx = size(bits, 1);
+                new_combination_start_idx = max(size(all_combinations, 1), 1) * (bit_idx - 1) + 1; % size(new_combinations, 1)
+                new_combination_end_idx = max(size(all_combinations, 1), 1) * bit_idx;
+                % repeat this new bit for each row in all_combinations
+                new_combinations(new_combination_start_idx:new_combination_end_idx, 1:size(new_bits, 2))...
+                    = repmat(new_bits, max(size(all_combinations, 1), 1), 1);
             end
-            all_combinations = [repmat(all_combinations, length(bits), 1), ...
-                    repmat(bits, max(size(all_combinations, 1), 1), 1)];
+            all_combinations = [repmat(all_combinations, size(bits, 1), 1), ...
+                        new_combinations];
+                    % all_combinations = [repmat(all_combinations, length(bits), 1), ...
+                    %     repmat(bits, max(size(all_combinations, 1), 1), 1)];
         end
     end
     
@@ -73,7 +128,6 @@ function [case_list, case_name_list, n_cases] = generateCases(case_basis, nameba
         else
              for f = 1:length(input_fields)
                  new_struct.(input_fields{f}) = 0;
-
              end
         end
     
@@ -90,7 +144,6 @@ function [case_list, case_name_list, n_cases] = generateCases(case_basis, nameba
         for f = 1:length(input_fields)
             if fast_fmt
                 for p = 1:length(param_fields.(input_fields{f}))
-                    
                     bin_iend = bin_i0 + n_field_vals(f, p) - 1;
                     sub_bin_c = bits(bin_i0:bin_iend);
                     bin_i0 = bin_iend + 1;
