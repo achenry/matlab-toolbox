@@ -122,6 +122,7 @@ elseif isunix
     home_storage_dir = '/scratch/alpine/aohe7145/ipc_tuning';
     project_dir = fullfile(home_projects_dir, 'projects/ipc_tuning');
     simulink_model_dir = fullfile(project_dir, 'simulink_models');
+    addpath(simulink_model_dir);
     % plant_setup_dir = fullfile(project_dir, 'plant_setup_package/');
     
     addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox'));
@@ -130,16 +131,22 @@ elseif isunix
     addpath(fullfile(home_projects_dir, 'toolboxes', 'matlab-toolbox', 'MBC', 'Source'));
     addpath(fullfile(home_projects_dir, 'toolboxes/turbsim-toolbox/A_Functions/'));
     addpath(project_dir);
-
+    autrun;
     libext = '.so';
     
     fast_install_dir = fullfile(home_projects_dir, 'toolboxes/openfast_dev/install');
     FAST_runDirectory = fullfile(home_storage_dir, 'ss_simulations');
     windfiles_dir = fullfile(project_dir, 'WindFiles/rated_turbulent');
+    
+    if ~exist(FAST_runDirectory)
+        mkdir(FAST_runDirectory);
+    end
+    addpath(FAST_runDirectory);
 
     addpath(fullfile(project_dir)); % sl model
 
     % FAST_SFunc location
+    addpath(fast_install_dir);
     addpath(fullfile(fast_install_dir, 'lib'));
 end
 
