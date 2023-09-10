@@ -121,6 +121,7 @@ elseif isunix
     home_projects_dir = '/projects/aohe7145';
     home_storage_dir = '/scratch/alpine/aohe7145/ipc_tuning';
     project_dir = fullfile(home_projects_dir, 'projects/ipc_tuning');
+    simulink_model_dir = fullfile(project_dir, 'simulink_models');
     % plant_setup_dir = fullfile(project_dir, 'plant_setup_package/');
     
     addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox'));
@@ -537,8 +538,8 @@ elseif RUN_SIMS_SINGLE
         [case_name_list{case_idx}, '.fst']);
     DT = Simulation.DT;
     HWindSpeed = str2num(case_list(case_idx).InflowWind.HWindSpeed);
-    % clear OutList;
-    % clear DT;
+    clear OutList;
+    clear DT;
 %     Parameters = origParameters;
 %     Parameters.cIPC.DQ_Ki_1P = sweepParameters.cIPC.DQ_Ki_1P(case_idx); % TODO change to be automated
     sim_out_list = sim(fullfile(FAST_SimulinkModel_dir, FAST_SimulinkModel), [0, TMax]);%, 'StartTime', '0', 'StopTime', 'TMax');
