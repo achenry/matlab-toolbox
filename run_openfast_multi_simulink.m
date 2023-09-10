@@ -131,6 +131,7 @@ elseif isunix
     addpath(fullfile(home_projects_dir, 'toolboxes', 'matlab-toolbox', 'MBC', 'Source'));
     addpath(fullfile(home_projects_dir, 'toolboxes/turbsim-toolbox/A_Functions/'));
     addpath(project_dir);
+    addpath(fullfile(toolbox_dir, 'PMtools/'));
     autrun;
     libext = '.so';
     
