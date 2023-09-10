@@ -39,13 +39,13 @@ if fidW==-1
     error(['Error: ', newname, '.dat not found.  Note: you do not need to end string with .dat']);
 end
 
-fidD=fopen(fullfile(templateDir,'InflowWind_desc.ipt'));
+fidD=fopen(fullfile(templateDir,'InflowWind_desc.dat'));
 if fidD==-1
-    error(['Error: Blank settings AeroDyn input file not found.']);
+    error(['Error: Blank settings InflowWind input file not found.']);
 end
 
 if input_mode==2
-    fidI=fopen(fullfile(templateDir,'InflowWind_inlist.ipt'));
+    fidI=fopen(fullfile(templateDir,'InflowWind_inlist.dat'));
     if fidI==-1
         error(['Error: Input description file not found.']);
     end
@@ -105,4 +105,4 @@ fclose(fidD);
 if input_mode==2
     fclose(fidI);
 end
-disp(['Status: ', newname,'.ipt created with ',num2str(numEdits),' changed input(s).']);
+disp(['Status: ', newname,'.dat created with ',num2str(numEdits),' changed input(s).']);

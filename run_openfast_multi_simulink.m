@@ -5,7 +5,8 @@
 close all;
 clc;
 % clearvars;
-% clear all;
+clear all;
+restoredefaultpath;
 
 TMax = 700;
 n_seeds = 100;
@@ -14,11 +15,11 @@ RUN_OL_BLADE = 0;
 RUN_CL = 1;
 WIND_TYPE = 'steady';
 % WIND_SPEEDS = 10:0.5:22;
-WIND_SPEEDS = 0:0.5:24;
+% WIND_SPEEDS = 0:0.5:24;
 % WIND_TYPE = 'turbsim';
-% WIND_SPEEDS = [14];
-RUN_SIMS_PAR = 1;
-RUN_SIMS_SINGLE = 0;
+WIND_SPEEDS = [14];
+RUN_SIMS_PAR = 0;
+RUN_SIMS_SINGLE = 1;
 COMPUTE_SS_VALS = 1;
 SWEEP_ANALYSIS = 0;
 LIN_SENS_ANALYSIS = 0;
@@ -95,21 +96,29 @@ if ismac % TODO setup for Manuel to run LIN_SYS_ANALYSIS
     libext = '.dylib';
     
     % fast_install_dir = fullfile(home_dir, 'dev/WEIS/OpenFAST/install');
-    fast_install_dir = fullfile(home_dir, 'usflowt_src/openfast/sl_install');
+    fast_install_dir = fullfile(toolbox_dir, 'openfast/install');
+    % fast_install_dir = fullfile(home_dir, 'src/openfast/install');
+    % fast_install_dir = fullfile(home_dir, 'usflowt_src/openfast/sl_install');
+    addpath(fast_install_dir);
+    % addpath(fullfile(fast_install_dir, 'include'));
+    % addpath(fullfile(fast_install_dir, 'lib'));
+
     FAST_runDirectory = fullfile(project_dir, 'simulations');
+    addpath(FAST_runDirectory);
 
     windfiles_dir = fullfile(project_dir, 'WindFiles', 'rated_turbulent');
     
     addpath(fullfile(project_dir)); % sl model
     
     % FAST_SFunc location
-    addpath(fullfile(fast_install_dir, 'lib'));
+    % addpath(fullfile(fast_install_dir, 'lib'));
+    % addpath(fullfile(toolbox_dir, 'openfast/build/glue-codes/simulink'));
 
 elseif isunix
     home_projects_dir = '/projects/aohe7145';
-    home_storage_dir = '/scratch/summit/aohe7145';
+    home_storage_dir = '/scratch/alpine/aohe7145';
     project_dir = fullfile(home_projects_dir, 'projects/ipc_tuning');
-    plant_setup_dir = fullfile(project_dir, 'plant_setup_package/');
+    % plant_setup_dir = fullfile(project_dir, 'plant_setup_package/');
     
     addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox'));
     addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox/A_Functions'));
@@ -146,6 +155,7 @@ end
 fastRunner.FAST_exe = fullfile(fast_install_dir, 'bin/openfast');
 fastRunner.FAST_lib = fullfile(fast_install_dir, ['lib/libopenfastlib', libext]);
 fastRunner.FAST_InputFile = 'weis_job_00';
+% fastRunner.FAST_InputFile = 'IEA-15-240-RWT-UMaineSemi';
 
 if ~exist(FAST_runDirectory, 'dir')
     mkdir(FAST_runDirectory);
@@ -158,12 +168,14 @@ Simulation.OpenFAST         = 1;
 Simulation.OpenFAST_Date    = '042821';
 Simulation.AeroDynVer       = '15';
 Simulation.DT = 0.0125;
+% Simulation.DT = 0.025;
 DT = Simulation.DT;
 cut_transients              = 100;
 
 % Name_Model                  = 'AD_SOAR_c7_V2f_c73_Clean';
 % Name_Control                = 'C_BL_SOAR25_V2f_c73_Clean';
 Parameters.Turbine.String   = 'SOAR-25-V2f';
+% Parameters.Turbine.String = 'IEA-15-240-RWT-UMaineSemi';
 Parameters.Turbine.fine_pitch = 0.303;  % deg
 
 Parameters.Turbine.ConeAngle = 3.6;%2.5;% deg
@@ -173,6 +185,9 @@ Parameters.Tower.Height  = 193.287;  % meters
 fastRunner.FAST_directory = fullfile(project_dir, [Parameters.Turbine.String '_IF']);
 FAST_InputFileName = fullfile(fastRunner.FAST_directory, [fastRunner.FAST_InputFile '.fst']);
 CpCtCqFile = fullfile(fastRunner.FAST_directory, 'weis_job_00_Cp_Ct_Cq.txt');
+% CpCtCqFile = fullfile(fastRunner.FAST_directory, 'Cp_Ct_Cq.IEA15MW.txt');
+
+addpath(fastRunner.FAST_directory);
 
 lin_models_dir = fullfile(fastRunner.FAST_directory, 'linearization', 'steady_wind-CL', 'linfiles', 'excGenDOF_incSecOrd');
 % lin_models_dir = fullfile(fastRunner.FAST_directory, 'linearization', 'steady_wind-CL', 'linfiles');
@@ -215,9 +230,14 @@ if sum([RUN_OL_DQ, RUN_OL_BLADE, RUN_CL]) == 1
 
     [case_list, case_name_list, n_cases] = generateCases(case_basis, CaseGen.namebase, true);
     
-    if ~exist('OutList.mat')
-        OutList = manualOutList([fullfile(FAST_runDirectory, ...
-            case_name_list{1}), '.SFunc.sum']);
+    % if OutList doesn't exist, run
+    % /Users/aoifework/Documents/dev/WEIS/OpenFAST/install/bin/openfast
+    % weis_job_00.fst from command line with all Modes in ServoDyn file set
+    % to 0 for TMax=10 to output OutList
+    if ~exist('OutList.mat') || true
+        % OutList = manualOutList([fullfile(FAST_runDirectory, ...
+        %     case_name_list{1}), '.sum']);
+        OutList = manualOutList(fullfile(fastRunner.FAST_directory, 'weis_job_00_cmdline.sum'));
         save(fullfile(project_dir, 'OutList.mat'), 'OutList');
     else
         load OutList.mat
@@ -259,7 +279,7 @@ copyfile(fullfile(fastRunner.FAST_directory, '*.dat'), FAST_runDirectory);
 copyfile(fullfile(fastRunner.FAST_directory, '*.fst'), FAST_runDirectory);
 
 if RUN_SIMS_PAR
-    load(fullfile(fastRunner.FAST_directory, 'ss_vals'));
+    % load(fullfile(fastRunner.FAST_directory, 'ss_vals'));
     parfor case_idx=1:n_cases
 
         new_fst_name = fullfile(FAST_runDirectory, ...
@@ -290,7 +310,7 @@ if RUN_SIMS_PAR
         Af_EditInflow(infw_lines, infw_edits, new_infw_name, def_infw_file, template_infw_dir, input_mode);
     end
 elseif RUN_SIMS_SINGLE
-    load(fullfile(fastRunner.FAST_directory, 'ss_vals'));
+    % load(fullfile(fastRunner.FAST_directory, 'ss_vals'));
     case_idx = 1;%find(WIND_SPEEDS == 14);
     new_fst_name = fullfile(FAST_runDirectory, ...
             case_name_list{case_idx});
@@ -514,11 +534,11 @@ elseif RUN_SIMS_SINGLE
         [case_name_list{case_idx}, '.fst']);
     DT = Simulation.DT;
     HWindSpeed = str2num(case_list(case_idx).InflowWind.HWindSpeed);
-    
+    % clear OutList;
+    % clear DT;
 %     Parameters = origParameters;
 %     Parameters.cIPC.DQ_Ki_1P = sweepParameters.cIPC.DQ_Ki_1P(case_idx); % TODO change to be automated
-
-    sim_out_list = sim(fullfile(FAST_SimulinkModel_dir, FAST_SimulinkModel), 'StartTime', '0', 'StopTime', 'TMax');
+    sim_out_list = sim(fullfile(FAST_SimulinkModel_dir, FAST_SimulinkModel), [0, TMax]);%, 'StartTime', '0', 'StopTime', 'TMax');
     
 end
 
