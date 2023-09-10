@@ -103,7 +103,10 @@ if ismac % TODO setup for Manuel to run LIN_SYS_ANALYSIS
     % addpath(fullfile(fast_install_dir, 'include'));
     % addpath(fullfile(fast_install_dir, 'lib'));
 
-    FAST_runDirectory = fullfile(project_dir, 'simulations');
+    FAST_runDirectory = fullfile(project_dir, 'ss_simulations');
+    if ~exist(FAST_runDirectory)
+        mkdir(FAST_runDirectory);
+    end
     addpath(FAST_runDirectory);
 
     windfiles_dir = fullfile(project_dir, 'WindFiles', 'rated_turbulent');
@@ -111,12 +114,12 @@ if ismac % TODO setup for Manuel to run LIN_SYS_ANALYSIS
     addpath(fullfile(project_dir)); % sl model
     
     % FAST_SFunc location
-    % addpath(fullfile(fast_install_dir, 'lib'));
+    addpath(fullfile(fast_install_dir, 'lib'));
     % addpath(fullfile(toolbox_dir, 'openfast/build/glue-codes/simulink'));
 
 elseif isunix
     home_projects_dir = '/projects/aohe7145';
-    home_storage_dir = '/scratch/alpine/aohe7145';
+    home_storage_dir = '/scratch/alpine/aohe7145/ipc_tuning';
     project_dir = fullfile(home_projects_dir, 'projects/ipc_tuning');
     % plant_setup_dir = fullfile(project_dir, 'plant_setup_package/');
     
@@ -129,8 +132,8 @@ elseif isunix
 
     libext = '.so';
     
-    fast_install_dir = fullfile(home_projects_dir, 'toolboxes/usflowt/openfast/sl_install');
-    FAST_runDirectory = fullfile(home_storage_dir, 'OpenfastSimulations/SOAR_rated_turbulent');
+    fast_install_dir = fullfile(home_projects_dir, 'toolboxes/openfast_dev/install');
+    FAST_runDirectory = fullfile(home_storage_dir, 'ss_simulations');
     windfiles_dir = fullfile(project_dir, 'WindFiles/rated_turbulent');
 
     addpath(fullfile(project_dir)); % sl model
