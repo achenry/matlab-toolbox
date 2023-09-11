@@ -91,12 +91,10 @@ if ismac % TODO setup for Manuel to run LIN_SYS_ANALYSIS
     addpath(fullfile(toolbox_dir, 'PMtools/'));
     autrun;
 
-    addpath(project_dir);
-
     libext = '.dylib';
     
     % fast_install_dir = fullfile(home_dir, 'dev/WEIS/OpenFAST/install');
-    fast_install_dir = fullfile(toolbox_dir, 'openfast/install');
+    fast_install_dir = fullfile(toolbox_dir, 'openfast/install2');
     % fast_install_dir = fullfile(home_dir, 'src/openfast/install');
     % fast_install_dir = fullfile(home_dir, 'usflowt_src/openfast/sl_install');
     addpath(fast_install_dir);
@@ -119,19 +117,19 @@ if ismac % TODO setup for Manuel to run LIN_SYS_ANALYSIS
 
 elseif isunix
     home_projects_dir = '/projects/aohe7145';
+    toolbox_dir = fullfile(home_projects_dir, 'toolboxes');
     home_storage_dir = '/scratch/alpine/aohe7145/ipc_tuning';
     project_dir = fullfile(home_projects_dir, 'projects/ipc_tuning');
     simulink_model_dir = fullfile(project_dir, 'simulink_models');
     addpath(simulink_model_dir);
     % plant_setup_dir = fullfile(project_dir, 'plant_setup_package/');
     
-    addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox'));
-    addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox/A_Functions'));
-    addpath(fullfile(home_projects_dir, 'toolboxes/matlab-toolbox/Utilities'));
-    addpath(fullfile(home_projects_dir, 'toolboxes', 'matlab-toolbox', 'MBC', 'Source'));
-    addpath(fullfile(home_projects_dir, 'toolboxes/turbsim-toolbox/A_Functions/'));
-    addpath(project_dir);
-    addpath(fullfile(home_projects_dir, 'toolboxes/PMtools/'));
+    addpath(fullfile(toolbox_dir, 'matlab-toolbox'));
+    addpath(fullfile(toolbox_dir, 'matlab-toolbox/A_Functions'));
+    addpath(fullfile(toolbox_dir, 'matlab-toolbox/Utilities'));
+    addpath(fullfile(toolbox_dir, 'matlab-toolbox', 'MBC', 'Source'));
+    addpath(fullfile(toolbox_dir, 'turbsim-toolbox/A_Functions/'));
+    addpath(fullfile(toolbox_dir, 'PMtools/'));
     autrun;
     libext = '.so';
     
@@ -162,6 +160,10 @@ elseif RUN_CL && COMPUTE_SS_VALS
     FAST_SimulinkModel = 'AD_SOAR_c7_V2f_c73_Clean';
 else
     FAST_SimulinkModel = 'AD_SOAR_c7_V2f_c73_Clean_newIPC';
+end
+
+if isunix
+    FAST_SimulinkModel = [FAST_SimulinkModel, '_old'];
 end
 
 fastRunner.FAST_exe = fullfile(fast_install_dir, 'bin/openfast');
@@ -546,8 +548,8 @@ elseif RUN_SIMS_SINGLE
         [case_name_list{case_idx}, '.fst']);
     DT = Simulation.DT;
     HWindSpeed = str2num(case_list(case_idx).InflowWind.HWindSpeed);
-    clear OutList;
-    clear DT;
+    % clear OutList;
+    % clear DT;
 %     Parameters = origParameters;
 %     Parameters.cIPC.DQ_Ki_1P = sweepParameters.cIPC.DQ_Ki_1P(case_idx); % TODO change to be automated
     sim_out_list = sim(fullfile(FAST_SimulinkModel_dir, FAST_SimulinkModel), [0, TMax]);%, 'StartTime', '0', 'StopTime', 'TMax');
